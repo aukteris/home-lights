@@ -10,7 +10,7 @@
 					}
 				};
 				
-				xhttp.open("POST", "http://10.0.1.198:3000/getMotionState", true);
+				xhttp.open("POST", "http://10.0.1.72:3000/getMotionState", true);
 				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
 				xhttp.send("light=1");
 			}
@@ -71,7 +71,7 @@
 					}
 				};
 				
-				xhttp.open("POST", "http://10.0.1.198:3000/getLights", true);
+				xhttp.open("POST", "http://10.0.1.72:3000/getLights", true);
 				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
 				xhttp.send();
 			}
@@ -140,7 +140,7 @@
 					}
 				}
 				
-				xhttp.open("POST", "http://10.0.1.198:3000/getGroups", true);
+				xhttp.open("POST", "http://10.0.1.72:3000/getGroups", true);
 				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
 				xhttp.send();
 			}
@@ -154,7 +154,7 @@
 					}
 				};
 				
-				xhttp.open("POST", "http://10.0.1.198:3000/setLightState", true);
+				xhttp.open("POST", "http://10.0.1.72:3000/setLightState", true);
 				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
 				var req = "light="+ light +"&state=" + state + "&val="+ val
 				xhttp.send(req);
@@ -169,7 +169,7 @@
 					}
 				};
 				
-				xhttp.open("POST", "http://10.0.1.198:3000/setGroupPreset", true);
+				xhttp.open("POST", "http://10.0.1.72:3000/setGroupPreset", true);
 				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
 				var result = "groupName=" + groupName + "&presetName=" + presetName;
 				xhttp.send(result);
@@ -184,7 +184,7 @@
 					}
 				};
 				
-				xhttp.open("POST", "http://10.0.1.198:3000/findDevices", true);
+				xhttp.open("POST", "http://10.0.1.72:3000/findDevices", true);
 				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
 				xhttp.send();
 			}

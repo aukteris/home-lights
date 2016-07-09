@@ -313,5 +313,5 @@ app.post('/findDevices',function(req,res) {
 });
 
 app.get('/', function (req,res) {
-	res.sendFile('/home/pi/Documents/Node/index.html');
+	res.sendFile('/home/aukteris/Documents/Node/home-lights/index.html');
 });
