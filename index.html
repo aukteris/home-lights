@@ -1,0 +1,245 @@
+<html>
+	<head>
+		<script type="text/javascript">
+			function getMotionState() {
+				var xhttp = new XMLHttpRequest();
+				
+				xhttp.onreadystatechange = function() {
+					if (xhttp.readyState == 4 && xhttp.status == 200) {
+						alert(xhttp.responseText);
+					}
+				};
+				
+				xhttp.open("POST", "http://10.0.1.198:3000/getMotionState", true);
+				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+				xhttp.send("light=1");
+			}
+			
+			function getLights() {
+				var xhttp = new XMLHttpRequest();
+				
+				xhttp.onreadystatechange = function() {
+					if (xhttp.readyState == 4 && xhttp.status == 200) {
+						var data = JSON.parse(xhttp.responseText);
+						
+						document.getElementById('lights').innerHTML = "";
+						
+						var list = document.createElement('ul');
+						console.log(data);
+						for (var key in data) {
+							var node = document.createElement('li');
+							var text = document.createTextNode(key);
+							var butDiv = document.createElement('div');
+							var butClass = document.createAttribute('class');
+							butClass.value = 'butDiv';
+							butDiv.setAttributeNode(butClass);
+							
+							var on = document.createElement('button');
+							var off = document.createElement('button');
+							
+							var butClass = document.createAttribute('class');
+								butClass.value = "selected";
+							
+							if (data[key].on == true) {
+								on.setAttributeNode(butClass);
+							}
+							
+							if (data[key].on == false) {
+								off.setAttributeNode(butClass);
+							}
+							
+							var onOnLoad = document.createAttribute('onclick');
+							onOnLoad.value = "setLightState('"+ key +"','cmd','on')";
+							var offOnLoad = document.createAttribute('onclick');
+							offOnLoad.value = "setLightState('"+ key +"','cmd','off')";
+							
+							var onText = document.createTextNode('On');
+							var offText = document.createTextNode('Off');
+							on.setAttributeNode(onOnLoad);
+							off.setAttributeNode(offOnLoad);
+							on.appendChild(onText);
+							off.appendChild(offText);
+							
+							node.appendChild(text);
+							butDiv.appendChild(on);
+							butDiv.appendChild(off);
+							node.appendChild(butDiv);
+							list.appendChild(node);
+						}
+						
+						document.getElementById('lights').appendChild(list);
+					}
+				};
+				
+				xhttp.open("POST", "http://10.0.1.198:3000/getLights", true);
+				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+				xhttp.send();
+			}
+			
+			function getGroups() {
+				var xhttp = new XMLHttpRequest();
+				
+				xhttp.onreadystatechange = function() {
+					if (xhttp.readyState == 4 && xhttp.status == 200) {
+						var data = JSON.parse(xhttp.responseText);
+						
+						document.getElementById('groups').innerHTML = "";
+						
+						var list = document.createElement('ul');
+						console.log(data);
+						for (var key in data) {
+							var node = document.createElement('li');
+							var text = document.createTextNode(key);
+							node.appendChild(text);
+							
+							var butDiv = document.createElement('div');
+							var butClass = document.createAttribute('class');
+							butClass.value = 'butDiv';
+							butDiv.setAttributeNode(butClass);
+							
+							// Make the default button
+							var pBut = document.createElement('button');
+							var butClick = document.createAttribute('onclick');
+							butClick.value = "setGroupPreset('"+key+"','Default');";
+							pBut.setAttributeNode(butClick);
+							
+							if (data[key].activePreset == "DefaultDay" || data[key].activePreset == "DefaultNight") {
+								var butClass = document.createAttribute('class');
+								butClass.value = "selected";
+								pBut.setAttributeNode(butClass);
+							}
+							
+							var butText = document.createTextNode('Default');
+							pBut.appendChild(butText);
+							butDiv.insertBefore(pBut, butDiv.firstChild);
+							
+							// Make a button for every preset that isn't a default
+							for (var preset in data[key].presets) {
+								if (preset != "DefaultDay" && preset != "DefaultNight") {
+									var pBut = document.createElement('button');
+									var butClick = document.createAttribute('onclick');
+									butClick.value = "setGroupPreset('"+key+"','"+preset+"');";
+									pBut.setAttributeNode(butClick);
+									
+									if (data[key].activePreset == preset) {
+										var butClass = document.createAttribute('class');
+										butClass.value = "selected";
+										pBut.setAttributeNode(butClass);
+									}
+									
+									var butText = document.createTextNode(preset);
+									pBut.appendChild(butText);
+									butDiv.insertBefore(pBut, butDiv.firstChild);
+								}
+							}
+							node.appendChild(butDiv);
+							list.appendChild(node);
+						}
+						
+						document.getElementById('groups').appendChild(list);
+					}
+				}
+				
+				xhttp.open("POST", "http://10.0.1.198:3000/getGroups", true);
+				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+				xhttp.send();
+			}
+			
+			function setLightState(light,state,val) {
+				var xhttp = new XMLHttpRequest();
+				
+				xhttp.onreadystatechange = function() {
+					if (xhttp.readyState == 4 && xhttp.status == 200) {
+						getLights();
+					}
+				};
+				
+				xhttp.open("POST", "http://10.0.1.198:3000/setLightState", true);
+				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+				var req = "light="+ light +"&state=" + state + "&val="+ val
+				xhttp.send(req);
+			}
+			
+			function setGroupPreset(groupName,presetName) {
+				var xhttp = new XMLHttpRequest();
+				
+				xhttp.onreadystatechange = function() {
+					if (xhttp.readyState == 4 && xhttp.status == 200) {
+						getGroups();getLights();
+					}
+				};
+				
+				xhttp.open("POST", "http://10.0.1.198:3000/setGroupPreset", true);
+				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+				var result = "groupName=" + groupName + "&presetName=" + presetName;
+				xhttp.send(result);
+			}
+			
+			function refreshDevices() {
+				var xhttp = new XMLHttpRequest();
+				
+				xhttp.onreadystatechange = function() {
+					if (xhttp.readyState == 4 && xhttp.status == 200) {
+						getLights();
+					}
+				};
+				
+				xhttp.open("POST", "http://10.0.1.198:3000/findDevices", true);
+				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+				xhttp.send();
+			}
+		</script>
+		<style>
+			body {
+				margin:0px;
+			}
+			ul {
+				list-style: none;
+				padding:0;
+				width:100%;
+				list-style-position: inside;
+			}
+			
+			li {
+				height:50px;
+				line-height: 50px;
+				vertical-align: middle;
+				border-bottom: 1px solid #949494;
+				padding-left: 5px;
+				padding-right:5px;
+				margin: 0;
+				background-color: hsla(0, 0%, 91%, 1);
+			}
+			
+			li button {
+				width:50px;
+				height:50px;
+				line-height: 50px;
+				vertical-align: middle;
+				border:none;
+				background-color: gray;
+				margin-right:10px;
+				position: relative;
+			}
+			
+			.butDiv {
+				float:right;
+			}
+			
+			.selected {
+				background-color: green;
+			}
+			
+		</style>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+	</head>
+	<body onload="getLights();getGroups();">
+		<button onclick="refreshDevices();">Refresh</button>
+		<h2>Lights</h2>
+		<div id="lights">
+		</div>
+		<h2>Groups</h2>
+		<div id="groups">
+		</div>
+	</body>
+</html>
