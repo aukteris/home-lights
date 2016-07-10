@@ -1,0 +1,18 @@
+{ 'Master Bedroom': 
+   Group {
+     name: 'Master Bedroom',
+     lights: [ 1, 4, 5, 'Night light' ],
+     presets: { DefaultDay: [Object], DefaultNight: [Object], Relax: [Object] },
+     delay: null },
+  'Living Room': 
+   Group {
+     name: 'Living Room',
+     lights: [ 2, 3, 'lr_rgb' ],
+     presets: 
+      { DefaultDay: [Object],
+        DefaultNight: [Object],
+        Relax: [Object],
+        Sunrise: [Object],
+        Sunset: [Object] },
+     delay: null,
+     activePreset: 'DefaultDay' } }

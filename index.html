@@ -145,49 +145,49 @@
 				xhttp.send();
 			}
 			
-			function setLightState(light,state,val) {
-				var xhttp = new XMLHttpRequest();
-				
-				xhttp.onreadystatechange = function() {
+			function refreshDevices() {
+				sendPost("findDevices","",function(xhttp) {
 					if (xhttp.readyState == 4 && xhttp.status == 200) {
 						getLights();
 					}
-				};
-				
-				xhttp.open("POST", "http://10.0.1.72:3000/setLightState", true);
-				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-				var req = "light="+ light +"&state=" + state + "&val="+ val
-				xhttp.send(req);
+				});
+			}
+			
+			function setLightState(light,state,val) {
+				var result = "light="+ light +"&state=" + state + "&val="+ val;
+				sendPost("setLightState",result,function(xhttp) {
+					if (xhttp.readyState == 4 && xhttp.status == 200) {
+						getLights();
+					}
+				});
 			}
 			
 			function setGroupPreset(groupName,presetName) {
-				var xhttp = new XMLHttpRequest();
-				
-				xhttp.onreadystatechange = function() {
+				var result = "groupName=" + groupName + "&presetName=" + presetName;
+				sendPost("setGroupPreset",result,function(xhttp) {
 					if (xhttp.readyState == 4 && xhttp.status == 200) {
 						getGroups();getLights();
 					}
-				};
-				
-				xhttp.open("POST", "http://10.0.1.72:3000/setGroupPreset", true);
-				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-				var result = "groupName=" + groupName + "&presetName=" + presetName;
-				xhttp.send(result);
+				});
 			}
 			
-			function refreshDevices() {
+			function savePreset() {
+				sendPost("savePreset","",function(xhttp) {
+					
+				});
+			}
+			
+			function sendPost(method,data,cb) {
 				var xhttp = new XMLHttpRequest();
 				
-				xhttp.onreadystatechange = function() {
-					if (xhttp.readyState == 4 && xhttp.status == 200) {
-						getLights();
-					}
-				};
+				xhttp.onreadystatechange = cb(xhttp);
+				var uri = "http://10.0.1.72:3000/" + method;
 				
-				xhttp.open("POST", "http://10.0.1.72:3000/findDevices", true);
+				xhttp.open("POST", uri, true);
 				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-				xhttp.send();
+				xhttp.send(data);
 			}
+			
 		</script>
 		<style>
 			body {
@@ -235,6 +235,7 @@
 	</head>
 	<body onload="getLights();getGroups();">
 		<button onclick="refreshDevices();">Refresh</button>
+		<button onclick="savePreset();">Save Preset</button>
 		<h2>Lights</h2>
 		<div id="lights">
 		</div>

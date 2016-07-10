@@ -8,6 +8,15 @@ var hostname = "10.0.1.2",
 	username = "pucuzePjlQkG1pblTsFrujXxVxA07C9LPXxdc-Uy",
 	api;
 
+var mqtt    = require('mqtt');
+var mclient  = mqtt.connect('mqtt://10.0.1.72');
+
+// Connect to MQTT for device communication
+mclient.on('connect', function () {
+	loggit('MQTT client connected');
+	mclient.subscribe('danDevices');
+});
+
 api = new HueApi(hostname, username);
 
 // define some functions
@@ -86,7 +95,32 @@ function findDevices(cb) {
 			} catch(err) {
 				loggit(err);
 			}
-
+			
+			
+			
+		});
+		
+		// Setup dan lights
+		var message = JSON.stringify({'mode':'find'});
+		mclient.publish('danDevices', message);
+		
+		mclient.on('message', function (topic, message) {
+			if (topic == "danDevices") {
+				var data = JSON.parse(message.toString());
+				
+				switch (data['mode']) {
+					case "findResponse":
+						loggit('Dan Device Found: ' + data['name']);
+						
+						var light = new Light('Dan Light',data['name']);
+		    			light.color = true;
+		    			
+		    			var r = [data['name'],light];
+						cb(r);
+						
+						break;	
+				}
+			}
 		});
 	});
 }
@@ -224,6 +258,8 @@ Light.prototype.setState = function(state,val) {
 					onState = lightState.create().off();
 					this.on = false;
 					wemoOnState = 0;
+					val = [0,0,0];
+					
 					break;
 					
 				case "on":
@@ -278,6 +314,13 @@ Light.prototype.setState = function(state,val) {
 						this.wemoDevice.setDeviceStatus(this.wemoBridge,"10006",wemoOnState);
 					}
 					break;
+				
+				case "Dan Light":
+					var message = JSON.stringify({'mode':'changeState','name':this.name,'r':val[0],'g':val[1],'b':val[2]});
+					mclient.publish('danDevices',message);
+					loggit('dans light called');
+					
+					break;
 			}
 		} catch(err) {
 			loggit(err);
@@ -289,7 +332,7 @@ Light.prototype.getState = function(cb) {
 	var self = this;
 	switch (this.tech) {
 		case "Hue":
-			api.lightStatus(this.name)
+			api.lightStatusWithRGB(this.name)
 				.then(function(status){
 					var result = {
 						on:status.state['on'],
@@ -299,7 +342,7 @@ Light.prototype.getState = function(cb) {
 						bri:status.state['bri'],
 						preset:self.activePreset
 					}
-					//console.log(result);
+					console.log(status);
 					cb(result);
 					
 				}).done();

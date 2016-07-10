@@ -3,6 +3,8 @@ var bodyParser = require("body-parser");
 var express = require("express");
 var schedule = require('node-schedule');
 var SunCalc = require('suncalc');
+var util = require('util');
+var fs = require('fs');
 
 var lctrl = require('./lctrl');
 var lctrl_settings = require('./lctrl_settings');
@@ -118,7 +120,18 @@ lctrl.init(function () {
 	lctrl.groups['Master Bedroom'].createPreset('Relax','static',set);
 	
 	// Living room setup
-	lctrl.createGroup('Living Room',[2,3]);
+	lctrl.createGroup('Living Room',[2,3,'lr_rgb']);
+	
+	var defaultDaySet = [
+		{name:'2',states:{'white':[285,100]}},
+		{name:'3',states:{'white':[285,100]}},
+		{name:'lr_rgb',states:{'rgb':[255,230,15]}}
+	];
+	var defaultNightSet = [
+		{name:'2',states:{'white':[375,75]}},
+		{name:'3',states:{'white':[375,75]}},
+		{name:'lr_rgb',states:{'rgb':[200,130,5]}}
+	];
 	
 	// Default preset
 	lctrl.groups['Living Room'].createPreset('DefaultDay','static',defaultDaySet);
@@ -127,7 +140,8 @@ lctrl.init(function () {
 	// Relax preset
 	var set = [
 		{name:'2',states:{'hueBriSat':[49697,153,254]}},
-		{name:'3',states:{'hueBriSat':[14948,117,143]}}
+		{name:'3',states:{'hueBriSat':[14948,117,143]}},
+		{name:'lr_rgb',states:{'rgb':[40,40,210]}}
 	];
 	lctrl.groups['Living Room'].createPreset('Relax','static',set); 
 	
@@ -135,7 +149,7 @@ lctrl.init(function () {
 	var fadeColorsRise = {
 		startWhite:375,
 		startBright:75,
-		endWhite:285,
+		endWhite:255,
 		endBright:100,
 		duration:60
 	}
@@ -191,6 +205,8 @@ lctrl.init(function () {
 		mqtt_listener();
 		
 		loggit('Light Control initialized');
+		
+		fs.writeFileSync('./data.json', util.inspect(lctrl.groups) , 'utf-8');
 	});
 	
 	app.listen(3000,function () {
@@ -222,8 +238,9 @@ function mqtt_listener() {
 							lctrl.setStates('Living Room',{'cmd':'on'},function(){});
 							//client.publish('lrgroup','ON');
 						} 
+						
 						var t = thresh[this_hpl]*1000;
-							lctrl.delaySetGroupStates('Living Room',{'cmd':'off'},t, function(){
+						lctrl.delaySetGroupStates('Living Room',{'cmd':'off'},t, function(){
 							//client.publish('lrgroup','OFF');	
 						});
 					}
@@ -310,6 +327,10 @@ app.post('/findDevices',function(req,res) {
 	lctrl.init(function() {
 		res.end('{status:"successful"}')
 	});
+});
+
+app.post('/savePreset',function(req,res) {
+	
 });
 
 app.get('/', function (req,res) {
