@@ -125,12 +125,12 @@ lctrl.init(function () {
 	var defaultDaySet = [
 		{name:'2',states:{'white':[285,100]}},
 		{name:'3',states:{'white':[285,100]}},
-		{name:'lr_rgb',states:{'rgb':[255,230,15]}}
+		{name:'lr_rgb',states:{'cmd':'off'}}
 	];
 	var defaultNightSet = [
 		{name:'2',states:{'white':[375,75]}},
 		{name:'3',states:{'white':[375,75]}},
-		{name:'lr_rgb',states:{'rgb':[200,130,5]}}
+		{name:'lr_rgb',states:{'cmd':'off'}}
 	];
 	
 	// Default preset

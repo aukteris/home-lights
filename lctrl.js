@@ -220,6 +220,7 @@ function Light(tech,name) {
 Light.prototype.setState = function(state,val) {
 	var onState;
 	var wemoOnState = null;
+	var dansState = null;
 	var loadPreset = false;
 	
 	switch(state) {
@@ -231,6 +232,7 @@ Light.prototype.setState = function(state,val) {
 		case "rgb":
 			onState = this.color === true ? lightState.create().rgb(val).on() : lightState.create().on();
 			this.on = true;
+			dansState = val;
 			break;
 		
 		case "hueBriSat":
@@ -316,10 +318,11 @@ Light.prototype.setState = function(state,val) {
 					break;
 				
 				case "Dan Light":
-					var message = JSON.stringify({'mode':'changeState','name':this.name,'r':val[0],'g':val[1],'b':val[2]});
-					mclient.publish('danDevices',message);
-					loggit('dans light called');
-					
+					if (dansState !== null) {
+						var message = JSON.stringify({'mode':'changeState','name':this.name,'r':dansState[0],'g':dansState[1],'b':dansState[2]});
+						mclient.publish('danDevices',message);
+						loggit('dans light called');
+					}
 					break;
 			}
 		} catch(err) {
@@ -340,6 +343,7 @@ Light.prototype.getState = function(cb) {
 						hue:status.state['hue'],
 						sat:status.state['sat'],
 						bri:status.state['bri'],
+						rgb:status.state['rgb'],
 						preset:self.activePreset
 					}
 					console.log(status);

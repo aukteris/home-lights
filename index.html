@@ -60,10 +60,18 @@
 							on.appendChild(onText);
 							off.appendChild(offText);
 							
+							var testDiv = document.createElement('div');
+							var testClass = document.createAttribute('class');
+							testClass.value = 'testDiv';
+							testDiv.setAttributeNode(testClass);
+							
 							node.appendChild(text);
 							butDiv.appendChild(on);
 							butDiv.appendChild(off);
-							node.appendChild(butDiv);
+							
+							testDiv.appendChild(butDiv);
+							
+							node.appendChild(testDiv);
 							list.appendChild(node);
 						}
 						
@@ -132,9 +140,24 @@
 									butDiv.insertBefore(pBut, butDiv.firstChild);
 								}
 							}
-							node.appendChild(butDiv);
+							
+							var testDiv = document.createElement('div');
+							var testClass = document.createAttribute('class');
+							testClass.value = 'testDiv';
+							testDiv.setAttributeNode(testClass);
+														
+							testDiv.appendChild(butDiv);
+							node.appendChild(testDiv);
 							list.appendChild(node);
+							
+							var testDiv = document.createElement('div');
+							var testClass = document.createAttribute('class');
+							testClass.value = 'clear';
+							testDiv.setAttributeNode(testClass);
+							
+							list.appendChild(testDiv);
 						}
+						
 						
 						document.getElementById('groups').appendChild(list);
 					}
@@ -146,8 +169,8 @@
 			}
 			
 			function refreshDevices() {
-				sendPost("findDevices","",function(xhttp) {
-					if (xhttp.readyState == 4 && xhttp.status == 200) {
+				sendPost("findDevices","",function(readyState,status) {
+					if (readyState == 4 && status == 200) {
 						getLights();
 					}
 				});
@@ -155,8 +178,8 @@
 			
 			function setLightState(light,state,val) {
 				var result = "light="+ light +"&state=" + state + "&val="+ val;
-				sendPost("setLightState",result,function(xhttp) {
-					if (xhttp.readyState == 4 && xhttp.status == 200) {
+				sendPost("setLightState",result,function(readyState,status) {
+					if (readyState == 4 && status == 200) {
 						getLights();
 					}
 				});
@@ -164,15 +187,15 @@
 			
 			function setGroupPreset(groupName,presetName) {
 				var result = "groupName=" + groupName + "&presetName=" + presetName;
-				sendPost("setGroupPreset",result,function(xhttp) {
-					if (xhttp.readyState == 4 && xhttp.status == 200) {
+				sendPost("setGroupPreset",result,function(readyState,status) {
+					if (readyState == 4 && status == 200) {
 						getGroups();getLights();
 					}
 				});
 			}
 			
 			function savePreset() {
-				sendPost("savePreset","",function(xhttp) {
+				sendPost("savePreset","",function(readyState,status) {
 					
 				});
 			}
@@ -180,7 +203,9 @@
 			function sendPost(method,data,cb) {
 				var xhttp = new XMLHttpRequest();
 				
-				xhttp.onreadystatechange = cb(xhttp);
+				xhttp.onreadystatechange = function() {
+					cb(xhttp.readyState,xhttp.status);
+				}
 				var uri = "http://10.0.1.72:3000/" + method;
 				
 				xhttp.open("POST", uri, true);
@@ -201,7 +226,7 @@
 			}
 			
 			li {
-				height:50px;
+				height:auto;
 				line-height: 50px;
 				vertical-align: middle;
 				border-bottom: 1px solid #949494;
@@ -209,6 +234,7 @@
 				padding-right:5px;
 				margin: 0;
 				background-color: hsla(0, 0%, 91%, 1);
+				overflow:auto;
 			}
 			
 			li button {
@@ -222,12 +248,17 @@
 				position: relative;
 			}
 			
-			.butDiv {
+			.testDiv {
 				float:right;
+				text-align:right;
 			}
-			
+						
 			.selected {
 				background-color: green;
+			}
+			
+			.clear {
+				clear:both;
 			}
 			
 		</style>
