@@ -96,8 +96,6 @@ function findDevices(cb) {
 				loggit(err);
 			}
 			
-			
-			
 		});
 		
 		// Setup dan lights
@@ -258,9 +256,9 @@ Light.prototype.setState = function(state,val) {
 			switch(val) {
 				case "off":
 					onState = lightState.create().off();
-					this.on = false;
 					wemoOnState = 0;
-					val = [0,0,0];
+					dansState = [0,0,0];
+					this.on = false;
 					
 					break;
 					
@@ -482,6 +480,8 @@ lightCtrl.prototype.setGroupPreset = function(group,preset) {
 			}
 		});
 		this.groups[group].activePreset = preset;
+		
+		clearTimeout(this.groups[group].delay);
 	} catch(err) {
 		loggit(err);
 	}

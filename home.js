@@ -267,11 +267,14 @@ app.post('/setGroupPreset',function(req,res){
 	var name;
 	if (req.body.presetName == "Default") {
 		name = isDark != false ? 'DefaultNight' : 'DefaultDay';
-		if (req.body.groupName == "Living Room") disabled = false;
-		var t = thresh[this_hpl]*1000;
-		lctrl.delaySetGroupStates(req.body.groupName,{'cmd':'off'},t,function(){
-			client.publish('lrgroup','OFF');
-		});
+		
+		if (req.body.groupName == "Living Room") {
+			disabled = false;
+			var t = thresh[this_hpl]*1000;
+			lctrl.delaySetGroupStates(req.body.groupName,{'cmd':'off'},t,function(){
+				
+			});
+		}
 	} else {
 		name = req.body.presetName;
 		if (req.body.groupName == "Living Room") disabled = true;
@@ -308,6 +311,13 @@ app.post('/getState',function(req,res) {
 
 app.post('/getMotionState',function(req,res) {
 	res.end(JSON.stringify(disabled));
+	res.end('{status:"successful"}');
+});
+
+app.post('/setMotionState',function(req,res) {
+	var disVal = req.body.disabled == 'true';
+	disabled = disVal;
+	res.end('{status:"successful"}');
 });
 
 app.post('/getLights',function(req,res) {
@@ -325,7 +335,7 @@ app.post('/getGroups',function(req,res) {
 
 app.post('/findDevices',function(req,res) {
 	lctrl.init(function() {
-		res.end('{status:"successful"}')
+		res.end('{status:"successful"}');
 	});
 });
 

@@ -1,6 +1,7 @@
 <html>
 	<head>
 		<script type="text/javascript">
+			
 			function getMotionState() {
 				var xhttp = new XMLHttpRequest();
 				
@@ -168,8 +169,81 @@
 				xhttp.send();
 			}
 			
+			function getOptions() {
+				sendPost("getMotionState","",function(readyState,status,responseText) {
+					if (readyState == 4 && status == 200) {
+						var tempdata = JSON.parse(responseText);
+						
+						var onState = tempdata == true ? false : true;
+						
+						data = {
+							'LR Motion':{
+								on: onState
+							}
+						};
+						
+						document.getElementById('options').innerHTML = "";
+						
+						var list = document.createElement('ul');
+						//console.log(data);
+						for (var key in data) {
+							//console.log(tempdata);
+							
+							var node = document.createElement('li');
+							var text = document.createTextNode(key);
+							var butDiv = document.createElement('div');
+							var butClass = document.createAttribute('class');
+							butClass.value = 'butDiv';
+							butDiv.setAttributeNode(butClass);
+							
+							var on = document.createElement('button');
+							var off = document.createElement('button');
+							
+							var butClass = document.createAttribute('class');
+								butClass.value = "selected";
+							
+							if (data[key].on == true) {
+								on.setAttributeNode(butClass);
+							}
+							
+							if (data[key].on == false) {
+								off.setAttributeNode(butClass);
+							}
+							
+							var onOnLoad = document.createAttribute('onclick');
+							onOnLoad.value = "setMotionState(false)";
+							var offOnLoad = document.createAttribute('onclick');
+							offOnLoad.value = "setMotionState(true)";
+							
+							var onText = document.createTextNode('On');
+							var offText = document.createTextNode('Off');
+							on.setAttributeNode(onOnLoad);
+							off.setAttributeNode(offOnLoad);
+							on.appendChild(onText);
+							off.appendChild(offText);
+							
+							var testDiv = document.createElement('div');
+							var testClass = document.createAttribute('class');
+							testClass.value = 'testDiv';
+							testDiv.setAttributeNode(testClass);
+							
+							node.appendChild(text);
+							butDiv.appendChild(on);
+							butDiv.appendChild(off);
+							
+							testDiv.appendChild(butDiv);
+							
+							node.appendChild(testDiv);
+							list.appendChild(node);
+						}
+						
+						document.getElementById('options').appendChild(list);
+					}
+				});
+			}
+			
 			function refreshDevices() {
-				sendPost("findDevices","",function(readyState,status) {
+				sendPost("findDevices","",function(readyState,status,responseText) {
 					if (readyState == 4 && status == 200) {
 						getLights();
 					}
@@ -178,24 +252,35 @@
 			
 			function setLightState(light,state,val) {
 				var result = "light="+ light +"&state=" + state + "&val="+ val;
-				sendPost("setLightState",result,function(readyState,status) {
+				sendPost("setLightState",result,function(readyState,status,responseText) {
 					if (readyState == 4 && status == 200) {
 						getLights();
 					}
 				});
 			}
 			
+			function setMotionState(disabled) {
+				var result = "disabled="+ disabled;
+				sendPost("setMotionState",result,function(readyState,status,responseText) {
+					if (readyState == 4 && status == 200) {
+						getOptions();
+					}
+				});
+			}
+			
 			function setGroupPreset(groupName,presetName) {
 				var result = "groupName=" + groupName + "&presetName=" + presetName;
-				sendPost("setGroupPreset",result,function(readyState,status) {
+				sendPost("setGroupPreset",result,function(readyState,status,responseText) {
 					if (readyState == 4 && status == 200) {
 						getGroups();getLights();
+						
+						getOptions();
 					}
 				});
 			}
 			
 			function savePreset() {
-				sendPost("savePreset","",function(readyState,status) {
+				sendPost("savePreset","",function(readyState,status,responseText) {
 					
 				});
 			}
@@ -204,7 +289,7 @@
 				var xhttp = new XMLHttpRequest();
 				
 				xhttp.onreadystatechange = function() {
-					cb(xhttp.readyState,xhttp.status);
+					cb(xhttp.readyState,xhttp.status,xhttp.responseText);
 				}
 				var uri = "http://10.0.1.72:3000/" + method;
 				
@@ -264,7 +349,7 @@
 		</style>
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 	</head>
-	<body onload="getLights();getGroups();">
+	<body onload="getLights();getGroups();getOptions();">
 		<button onclick="refreshDevices();">Refresh</button>
 		<button onclick="savePreset();">Save Preset</button>
 		<h2>Lights</h2>
@@ -272,6 +357,9 @@
 		</div>
 		<h2>Groups</h2>
 		<div id="groups">
+		</div>
+		<h2>Options</h2>
+		<div id="options">
 		</div>
 	</body>
 </html>
