@@ -377,9 +377,8 @@ Light.prototype.animate = function(ani,config,cb) {
 	}
 }
 
-function Preset(name,type,lConf) {
+function Preset(name,lConf) {
 	this.name = name;
-	this.type = type;
 	this.lConf = lConf;
 }
 
@@ -392,8 +391,8 @@ function Group(name,lights) {
 	this.delay = null;
 }
 
-Group.prototype.createPreset = function(name,type,lConf) {
-	this.presets[name] = new Preset(name,type,lConf);
+Group.prototype.createPreset = function(name,lConf) {
+	this.presets[name] = new Preset(name,lConf);
 }
 
 Group.prototype.clearDelay = function() {
@@ -444,7 +443,7 @@ lightCtrl.prototype.setGroupPreset = function(group,preset) {
 		this.groups[group].presets[preset].lConf.forEach(function(value) {
 			var lgts;
 			
-			switch (self.groups[group].presets[preset].type) {
+			switch (value.type) {
 				case "static":
 					if (value.name == 'all') {
 						lgts = self.groups[group].lights;

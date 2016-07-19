@@ -2,6 +2,96 @@
 	<head>
 		<script type="text/javascript">
 			
+			function listWithButtons() {
+				this.list = [];
+			}
+			
+			listWithButtons.prototype.addRow = function(label) {
+				var newRow = {
+					name:label,
+					buttons:[]
+				}
+				this.list.push(newRow);
+				
+				return this.list.indexOf(newRow);
+			}
+			
+			listWithButtons.prototype.addButton = function(key,label,onload,selected) {
+				var newButton = {
+					name:label,
+					onload:onload,
+					selected:selected
+				}
+				
+				this.list[key].buttons.push(newButton);
+				
+				return this.list[key].buttons.indexOf(newButton);
+			}
+			
+			listWithButtons.prototype.exportDOM = function() {
+				var list = document.createElement('ul');
+				
+				for (var key in this.list) {
+					var node = document.createElement('li');
+					var text = document.createTextNode(this.list[key].name);
+					node.appendChild(text);
+					
+					var butDiv = document.createElement('div');
+					var butClass = document.createAttribute('class');
+					butClass.value = 'butDiv';
+					butDiv.setAttributeNode(butClass);
+					
+					// Make a button for every preset that isn't a default
+					for (var button in this.list[key].buttons) {
+						var pBut = document.createElement('button');
+						var butClick = document.createAttribute('onclick');
+						butClick.value = this.list[key].buttons[button].onload;
+						pBut.setAttributeNode(butClick);
+						
+						if (this.list[key].buttons[button].selected === true) {
+							var butClass = document.createAttribute('class');
+							butClass.value = "selected";
+							pBut.setAttributeNode(butClass);
+						}
+						
+						var butText = document.createTextNode(this.list[key].buttons[button].name);
+						pBut.appendChild(butText);
+						butDiv.insertBefore(pBut, butDiv.firstChild);
+					}
+					
+					var testDiv = document.createElement('div');
+					var testClass = document.createAttribute('class');
+					testClass.value = 'testDiv';
+					testDiv.setAttributeNode(testClass);
+												
+					testDiv.appendChild(butDiv);
+					node.appendChild(testDiv);
+					list.appendChild(node);
+					
+					var testDiv = document.createElement('div');
+					var testClass = document.createAttribute('class');
+					testClass.value = 'clear';
+					testDiv.setAttributeNode(testClass);
+					
+					list.appendChild(testDiv);
+				}
+				
+				return list;
+			}
+			
+			function sendPost(method,data,cb) {
+				var xhttp = new XMLHttpRequest();
+				
+				xhttp.onreadystatechange = function() {
+					cb(xhttp.readyState,xhttp.status,xhttp.responseText);
+				}
+				var uri = "http://10.0.1.72:3000/" + method;
+				
+				xhttp.open("POST", uri, true);
+				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+				xhttp.send(data);
+			}
+			
 			function getMotionState() {
 				var xhttp = new XMLHttpRequest();
 				
@@ -17,156 +107,51 @@
 			}
 			
 			function getLights() {
-				var xhttp = new XMLHttpRequest();
-				
-				xhttp.onreadystatechange = function() {
-					if (xhttp.readyState == 4 && xhttp.status == 200) {
-						var data = JSON.parse(xhttp.responseText);
+				sendPost("getLights","",function(readyState,status,responseText) {
+					if (readyState == 4 && status == 200) {
+						var data = JSON.parse(responseText);
 						
 						document.getElementById('lights').innerHTML = "";
 						
-						var list = document.createElement('ul');
-						console.log(data);
+						var lgtsList = new listWithButtons();
+						
 						for (var key in data) {
-							var node = document.createElement('li');
-							var text = document.createTextNode(key);
-							var butDiv = document.createElement('div');
-							var butClass = document.createAttribute('class');
-							butClass.value = 'butDiv';
-							butDiv.setAttributeNode(butClass);
+							var row = lgtsList.addRow(key);
 							
-							var on = document.createElement('button');
-							var off = document.createElement('button');
-							
-							var butClass = document.createAttribute('class');
-								butClass.value = "selected";
-							
-							if (data[key].on == true) {
-								on.setAttributeNode(butClass);
-							}
-							
-							if (data[key].on == false) {
-								off.setAttributeNode(butClass);
-							}
-							
-							var onOnLoad = document.createAttribute('onclick');
-							onOnLoad.value = "setLightState('"+ key +"','cmd','on')";
-							var offOnLoad = document.createAttribute('onclick');
-							offOnLoad.value = "setLightState('"+ key +"','cmd','off')";
-							
-							var onText = document.createTextNode('On');
-							var offText = document.createTextNode('Off');
-							on.setAttributeNode(onOnLoad);
-							off.setAttributeNode(offOnLoad);
-							on.appendChild(onText);
-							off.appendChild(offText);
-							
-							var testDiv = document.createElement('div');
-							var testClass = document.createAttribute('class');
-							testClass.value = 'testDiv';
-							testDiv.setAttributeNode(testClass);
-							
-							node.appendChild(text);
-							butDiv.appendChild(on);
-							butDiv.appendChild(off);
-							
-							testDiv.appendChild(butDiv);
-							
-							node.appendChild(testDiv);
-							list.appendChild(node);
+							lgtsList.addButton(row,"On","setLightState('"+ key +"','cmd','on')",data[key].on == true);
+							lgtsList.addButton(row,"Off","setLightState('"+ key +"','cmd','off')",data[key].on == false);
 						}
 						
-						document.getElementById('lights').appendChild(list);
+						document.getElementById('lights').appendChild(lgtsList.exportDOM());
 					}
-				};
-				
-				xhttp.open("POST", "http://10.0.1.72:3000/getLights", true);
-				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-				xhttp.send();
+				});
 			}
 			
 			function getGroups() {
-				var xhttp = new XMLHttpRequest();
-				
-				xhttp.onreadystatechange = function() {
-					if (xhttp.readyState == 4 && xhttp.status == 200) {
-						var data = JSON.parse(xhttp.responseText);
+				sendPost("getGroups","",function(readyState,status,responseText) {
+					if (readyState == 4 && status == 200) {
+						var data = JSON.parse(responseText);
 						
 						document.getElementById('groups').innerHTML = "";
 						
-						var list = document.createElement('ul');
-						console.log(data);
+						var grpsList = new listWithButtons();
+						
 						for (var key in data) {
-							var node = document.createElement('li');
-							var text = document.createTextNode(key);
-							node.appendChild(text);
+							var row = grpsList.addRow(key);
 							
-							var butDiv = document.createElement('div');
-							var butClass = document.createAttribute('class');
-							butClass.value = 'butDiv';
-							butDiv.setAttributeNode(butClass);
-							
-							// Make the default button
-							var pBut = document.createElement('button');
-							var butClick = document.createAttribute('onclick');
-							butClick.value = "setGroupPreset('"+key+"','Default');";
-							pBut.setAttributeNode(butClick);
-							
-							if (data[key].activePreset == "DefaultDay" || data[key].activePreset == "DefaultNight") {
-								var butClass = document.createAttribute('class');
-								butClass.value = "selected";
-								pBut.setAttributeNode(butClass);
-							}
-							
-							var butText = document.createTextNode('Default');
-							pBut.appendChild(butText);
-							butDiv.insertBefore(pBut, butDiv.firstChild);
+							grpsList.addButton(row,"Default","setGroupPreset('"+key+"','Default');",data[key].activePreset == "DefaultDay" || data[key].activePreset == "DefaultNight");
 							
 							// Make a button for every preset that isn't a default
 							for (var preset in data[key].presets) {
 								if (preset != "DefaultDay" && preset != "DefaultNight") {
-									var pBut = document.createElement('button');
-									var butClick = document.createAttribute('onclick');
-									butClick.value = "setGroupPreset('"+key+"','"+preset+"');";
-									pBut.setAttributeNode(butClick);
-									
-									if (data[key].activePreset == preset) {
-										var butClass = document.createAttribute('class');
-										butClass.value = "selected";
-										pBut.setAttributeNode(butClass);
-									}
-									
-									var butText = document.createTextNode(preset);
-									pBut.appendChild(butText);
-									butDiv.insertBefore(pBut, butDiv.firstChild);
+									grpsList.addButton(row,preset,"setGroupPreset('"+key+"','"+preset+"');",data[key].activePreset == preset)
 								}
 							}
-							
-							var testDiv = document.createElement('div');
-							var testClass = document.createAttribute('class');
-							testClass.value = 'testDiv';
-							testDiv.setAttributeNode(testClass);
-														
-							testDiv.appendChild(butDiv);
-							node.appendChild(testDiv);
-							list.appendChild(node);
-							
-							var testDiv = document.createElement('div');
-							var testClass = document.createAttribute('class');
-							testClass.value = 'clear';
-							testDiv.setAttributeNode(testClass);
-							
-							list.appendChild(testDiv);
 						}
 						
-						
-						document.getElementById('groups').appendChild(list);
+						document.getElementById('groups').appendChild(grpsList.exportDOM());
 					}
-				}
-				
-				xhttp.open("POST", "http://10.0.1.72:3000/getGroups", true);
-				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-				xhttp.send();
+				});
 			}
 			
 			function getOptions() {
@@ -184,60 +169,14 @@
 						
 						document.getElementById('options').innerHTML = "";
 						
-						var list = document.createElement('ul');
-						//console.log(data);
+						var optsList = new listWithButtons();
 						for (var key in data) {
-							//console.log(tempdata);
-							
-							var node = document.createElement('li');
-							var text = document.createTextNode(key);
-							var butDiv = document.createElement('div');
-							var butClass = document.createAttribute('class');
-							butClass.value = 'butDiv';
-							butDiv.setAttributeNode(butClass);
-							
-							var on = document.createElement('button');
-							var off = document.createElement('button');
-							
-							var butClass = document.createAttribute('class');
-								butClass.value = "selected";
-							
-							if (data[key].on == true) {
-								on.setAttributeNode(butClass);
-							}
-							
-							if (data[key].on == false) {
-								off.setAttributeNode(butClass);
-							}
-							
-							var onOnLoad = document.createAttribute('onclick');
-							onOnLoad.value = "setMotionState(false)";
-							var offOnLoad = document.createAttribute('onclick');
-							offOnLoad.value = "setMotionState(true)";
-							
-							var onText = document.createTextNode('On');
-							var offText = document.createTextNode('Off');
-							on.setAttributeNode(onOnLoad);
-							off.setAttributeNode(offOnLoad);
-							on.appendChild(onText);
-							off.appendChild(offText);
-							
-							var testDiv = document.createElement('div');
-							var testClass = document.createAttribute('class');
-							testClass.value = 'testDiv';
-							testDiv.setAttributeNode(testClass);
-							
-							node.appendChild(text);
-							butDiv.appendChild(on);
-							butDiv.appendChild(off);
-							
-							testDiv.appendChild(butDiv);
-							
-							node.appendChild(testDiv);
-							list.appendChild(node);
+							var row = optsList.addRow(key);
+							optsList.addButton(row,"On","setMotionState(false)",data[key].on == true);
+							optsList.addButton(row,"Off","setMotionState(true)",data[key].on == false);
 						}
 						
-						document.getElementById('options').appendChild(list);
+						document.getElementById('options').appendChild(optsList.exportDOM());
 					}
 				});
 			}
@@ -283,19 +222,6 @@
 				sendPost("savePreset","",function(readyState,status,responseText) {
 					
 				});
-			}
-			
-			function sendPost(method,data,cb) {
-				var xhttp = new XMLHttpRequest();
-				
-				xhttp.onreadystatechange = function() {
-					cb(xhttp.readyState,xhttp.status,xhttp.responseText);
-				}
-				var uri = "http://10.0.1.72:3000/" + method;
-				
-				xhttp.open("POST", uri, true);
-				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-				xhttp.send(data);
 			}
 			
 		</script>
@@ -346,20 +272,32 @@
 				clear:both;
 			}
 			
+			.section {
+				display:none;
+			}
+			
+			#home.section {
+				display:block;
+			}
+			
 		</style>
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 	</head>
 	<body onload="getLights();getGroups();getOptions();">
-		<button onclick="refreshDevices();">Refresh</button>
-		<button onclick="savePreset();">Save Preset</button>
-		<h2>Lights</h2>
-		<div id="lights">
+		<div id="home" class="section">
+			<button onclick="refreshDevices();">Refresh</button>
+			<button onclick="savePreset();">Save Preset</button>
+			<h2>Lights</h2>
+			<div id="lights">
+			</div>
+			<h2>Groups</h2>
+			<div id="groups">
+			</div>
+			<h2>Options</h2>
+			<div id="options">
+			</div>
 		</div>
-		<h2>Groups</h2>
-		<div id="groups">
-		</div>
-		<h2>Options</h2>
-		<div id="options">
+		<div id="modPreset" class="section">
 		</div>
 	</body>
 </html>

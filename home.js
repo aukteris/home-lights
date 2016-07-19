@@ -101,49 +101,49 @@ lctrl.init(function () {
 	lctrl.createGroup('Master Bedroom',[1,4,5,'Night light']);
 	
 	var defaultDaySet = [
-		{name:'all',states:{'white':[285,100]}}
+		{name:'all',states:{'white':[285,100]},type:'static'}
 	];
 	var defaultNightSet = [
-		{name:'all',states:{'white':[375,75]}}
+		{name:'all',states:{'white':[375,75]},type:'static'}
 	];
 
-	lctrl.groups['Master Bedroom'].createPreset('DefaultDay','static',defaultDaySet);
-	lctrl.groups['Master Bedroom'].createPreset('DefaultNight','static',defaultNightSet);
+	lctrl.groups['Master Bedroom'].createPreset('DefaultDay',defaultDaySet);
+	lctrl.groups['Master Bedroom'].createPreset('DefaultNight',defaultNightSet);
 	
 	var set = [
-		{name:'1',states:{'hueBriSat':[49697,153,254]}},
-		{name:'4',states:{'bri':1}},
-		{name:'5',states:{'bri':1}},
-		{name:'Night light',states:{'cmd':'on'}}
+		{name:'1',states:{'hueBriSat':[49697,153,254]},type:'static'},
+		{name:'4',states:{'bri':1},type:'static'},
+		{name:'5',states:{'bri':1},type:'static'},
+		{name:'Night light',states:{'cmd':'on'},type:'static'}
 	];
 	
-	lctrl.groups['Master Bedroom'].createPreset('Relax','static',set);
+	lctrl.groups['Master Bedroom'].createPreset('Relax',set);
 	
 	// Living room setup
 	lctrl.createGroup('Living Room',[2,3,'lr_rgb']);
 	
 	var defaultDaySet = [
-		{name:'2',states:{'white':[285,100]}},
-		{name:'3',states:{'white':[285,100]}},
-		{name:'lr_rgb',states:{'cmd':'off'}}
+		{name:'2',states:{'white':[285,100]},type:'static'},
+		{name:'3',states:{'white':[285,100]},type:'static'},
+		{name:'lr_rgb',states:{'cmd':'off'},type:'static'}
 	];
 	var defaultNightSet = [
-		{name:'2',states:{'white':[375,75]}},
-		{name:'3',states:{'white':[375,75]}},
-		{name:'lr_rgb',states:{'cmd':'off'}}
+		{name:'2',states:{'white':[375,75]},type:'static'},
+		{name:'3',states:{'white':[375,75]},type:'static'},
+		{name:'lr_rgb',states:{'cmd':'off'},type:'static'}
 	];
 	
 	// Default preset
-	lctrl.groups['Living Room'].createPreset('DefaultDay','static',defaultDaySet);
-	lctrl.groups['Living Room'].createPreset('DefaultNight','static',defaultNightSet);
+	lctrl.groups['Living Room'].createPreset('DefaultDay',defaultDaySet);
+	lctrl.groups['Living Room'].createPreset('DefaultNight',defaultNightSet);
 	
 	// Relax preset
 	var set = [
-		{name:'2',states:{'hueBriSat':[49697,153,254]}},
-		{name:'3',states:{'hueBriSat':[14948,117,143]}},
-		{name:'lr_rgb',states:{'rgb':[40,40,210]}}
+		{name:'2',states:{'hueBriSat':[49697,153,254]},type:'static'},
+		{name:'3',states:{'hueBriSat':[14948,117,143]},type:'static'},
+		{name:'lr_rgb',states:{'rgb':[40,40,210]},type:'static'}
 	];
-	lctrl.groups['Living Room'].createPreset('Relax','static',set); 
+	lctrl.groups['Living Room'].createPreset('Relax',set); 
 	
 	// Sunrise/Sunset presets
 	var fadeColorsRise = {
@@ -161,14 +161,14 @@ lctrl.init(function () {
 		duration:60
 	}
 	var setA = [
-		{name:'all',states:fadeColorsRise}
+		{name:'all',states:fadeColorsRise,type:'fadeWhite'}
 	];
-	lctrl.groups['Living Room'].createPreset('Sunrise','fadeWhite',setA);
+	lctrl.groups['Living Room'].createPreset('Sunrise',setA);
 	
 	var setB = [
-		{name:'all',states:fadeColorsSet}
+		{name:'all',states:fadeColorsSet,type:'fadeWhite'}
 	];
-	lctrl.groups['Living Room'].createPreset('Sunset','fadeWhite',setB);
+	lctrl.groups['Living Room'].createPreset('Sunset',setB);
 	
 	setTimes();
 	
@@ -206,7 +206,7 @@ lctrl.init(function () {
 		
 		loggit('Light Control initialized');
 		
-		fs.writeFileSync('./data.json', util.inspect(lctrl.groups) , 'utf-8');
+		//fs.writeFileSync('./data.json', util.inspect(lctrl.groups) , 'utf-8');
 	});
 	
 	app.listen(3000,function () {
