@@ -4,7 +4,7 @@ var hue = require("node-hue-api"),
 var Wemo = require('wemo-client');
 var dateFormat = require('dateformat');
 
-var hostname = "10.0.1.2",
+var hostname = "10.0.1.4",
 	username = "pucuzePjlQkG1pblTsFrujXxVxA07C9LPXxdc-Uy",
 	api;
 
@@ -206,6 +206,11 @@ function Light(tech,name) {
 	this.activePreset = null;
 	this.presetName = null;
 	this.on;
+
+	this.hue = 360;
+	this.sat = 100;
+	this.bri = 100;
+	this.rgb;
 	
 	// fade animation variables
 	this.startWhite;
@@ -224,6 +229,7 @@ Light.prototype.setState = function(state,val) {
 	switch(state) {
 		case "bri":
 			onState = lightState.create().bri(val).on();
+			this.bri = (val/255)*100;
 			this.on = true;
 			break;
 			
@@ -235,16 +241,31 @@ Light.prototype.setState = function(state,val) {
 		
 		case "hueBriSat":
 			onState = this.color === true ? lightState.create().hue(val[0]).bri(val[1]).sat(val[2]).on() : lightState.create().bri(val[1]).on();
+			this.hue = val[0];
+			this.bri = (val[1]/255)*100;
+			this.sat = val[2];
+
 			this.on = true;
 			break;
-			
+
+
 		case "hue":
-			onState = this.color === true ? lightState.create().hue(val).on() : lightState.create().on();
+			this.hue = val;
+			onState = this.color === true ? lightState.create().hsb(this.hue,this.sat,this.bri).on() : lightState.create().bri(val[1]).on();
+
 			this.on = true;
+			break;
+
+		case "sat":
+			this.sat = val;
+			onState = this.color === true ? lightState.create().hsb(this.hue,this.sat,this.bri).on() : lightState.create().bri(val[1]).on();
+			this.on = true;
+
 			break;
 			
 		case "white":
 			var temp = val[1] * 2.55;
+			this.bri = val[1];
 			
 			onState = this.color === true ? lightState.create().white(val[0],val[1]).on() : lightState.create().bri(temp).on();
 			this.on = true;
@@ -342,7 +363,8 @@ Light.prototype.getState = function(cb) {
 						sat:status.state['sat'],
 						bri:status.state['bri'],
 						rgb:status.state['rgb'],
-						preset:self.activePreset
+						preset:self.activePreset,
+						color:self.color
 					}
 					console.log(status);
 					cb(result);
@@ -439,6 +461,8 @@ lightCtrl.prototype.setGroupPreset = function(group,preset) {
 		this.groups[group].lights.forEach(function(light) {
 			self.lights[light].activePreset = null;
 		});
+		
+		clearTimeout(self.groups[group].delay);
 		
 		this.groups[group].presets[preset].lConf.forEach(function(value) {
 			var lgts;

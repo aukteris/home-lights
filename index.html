@@ -1,6 +1,8 @@
 <html>
 	<head>
 		<script type="text/javascript">
+			var groupsData;
+			var lightsData;
 			
 			function listWithButtons() {
 				this.list = [];
@@ -9,11 +11,23 @@
 			listWithButtons.prototype.addRow = function(label) {
 				var newRow = {
 					name:label,
+					prebuts:[],
 					buttons:[]
 				}
 				this.list.push(newRow);
 				
 				return this.list.indexOf(newRow);
+			}
+			
+			listWithButtons.prototype.addPrebuts = function(key,label,onload) {
+				var newPrebut = {
+					name:label,
+					onload:onload
+				}
+				
+				this.list[key].prebuts.push(newPrebut);
+				
+				return this.list[key].prebuts.indexOf(newPrebut);
 			}
 			
 			listWithButtons.prototype.addButton = function(key,label,onload,selected) {
@@ -33,8 +47,28 @@
 				
 				for (var key in this.list) {
 					var node = document.createElement('li');
+					var textDiv = document.createElement('div');
+					var textClass = document.createAttribute('class');
+					textClass.value = 'textDiv';
+					textDiv.setAttributeNode(textClass);
+					
+					if (this.list[key].prebuts.length > 0) {
+						for (var pKey in this.list[key].prebuts) {
+							var link = document.createElement('a');
+							var linkClick = document.createAttribute('onclick');
+							linkClick.value = this.list[key].prebuts[pKey].onload;
+							link.setAttributeNode(linkClick);
+							
+							var linkText = document.createTextNode(this.list[key].prebuts[pKey].name);
+							link.appendChild(linkText);
+							
+							textDiv.appendChild(link);
+						}
+					}
+					
 					var text = document.createTextNode(this.list[key].name);
-					node.appendChild(text);
+					textDiv.appendChild(text);
+					node.appendChild(textDiv);
 					
 					var butDiv = document.createElement('div');
 					var butClass = document.createAttribute('class');
@@ -85,7 +119,7 @@
 				xhttp.onreadystatechange = function() {
 					cb(xhttp.readyState,xhttp.status,xhttp.responseText);
 				}
-				var uri = "http://10.0.1.72:3000/" + method;
+				var uri = "http://10.0.1.72:3300/" + method;
 				
 				xhttp.open("POST", uri, true);
 				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
@@ -110,6 +144,7 @@
 				sendPost("getLights","",function(readyState,status,responseText) {
 					if (readyState == 4 && status == 200) {
 						var data = JSON.parse(responseText);
+						lightsData = data;
 						
 						document.getElementById('lights').innerHTML = "";
 						
@@ -131,6 +166,7 @@
 				sendPost("getGroups","",function(readyState,status,responseText) {
 					if (readyState == 4 && status == 200) {
 						var data = JSON.parse(responseText);
+						groupsData = data;
 						
 						document.getElementById('groups').innerHTML = "";
 						
@@ -139,12 +175,13 @@
 						for (var key in data) {
 							var row = grpsList.addRow(key);
 							
-							grpsList.addButton(row,"Default","setGroupPreset('"+key+"','Default');",data[key].activePreset == "DefaultDay" || data[key].activePreset == "DefaultNight");
+							grpsList.addPrebuts(row,"Edit","editGroup('" + key + "')");
+							grpsList.addButton(row,"Default", "setGroupPreset('"+key+"','Default');", data[key].activePreset == "DefaultDay" || data[key].activePreset == "DefaultNight");
 							
 							// Make a button for every preset that isn't a default
 							for (var preset in data[key].presets) {
 								if (preset != "DefaultDay" && preset != "DefaultNight") {
-									grpsList.addButton(row,preset,"setGroupPreset('"+key+"','"+preset+"');",data[key].activePreset == preset)
+									grpsList.addButton(row,preset, "setGroupPreset('"+key+"','"+preset+"');", data[key].activePreset == preset);
 								}
 							}
 						}
@@ -211,9 +248,7 @@
 				var result = "groupName=" + groupName + "&presetName=" + presetName;
 				sendPost("setGroupPreset",result,function(readyState,status,responseText) {
 					if (readyState == 4 && status == 200) {
-						getGroups();getLights();
-						
-						getOptions();
+						getGroups();getLights();getOptions();
 					}
 				});
 			}
@@ -222,6 +257,33 @@
 				sendPost("savePreset","",function(readyState,status,responseText) {
 					
 				});
+			}
+			
+			function editGroup(key) {
+				document.getElementById("home").style.display = "none";
+				
+				document.getElementById("groupName").value = key;
+				document.getElementById('grpLights').innerHTML = "";
+				document.getElementById('grpPresets').innerHTML = "";
+				
+				// Lights in the group
+				var lgtsList = new listWithButtons();
+				for (var lKey in lightsData) {
+					var row = lgtsList.addRow(lKey);
+					
+					var tempKey = isNaN(parseInt(lKey)) ? lKey : parseInt(lKey);
+					
+					lgtsList.addButton(row,"In","",groupsData[key].lights.indexOf(tempKey) != -1);
+					lgtsList.addButton(row,"Out","",groupsData[key].lights.indexOf(tempKey) == -1);
+				}
+				
+				document.getElementById('grpLights').appendChild(lgtsList.exportDOM());
+				
+				// Presets in the group
+				var prstList = new listWithButtons();
+				
+				
+				document.getElementById("groupEdit").style.display = "block";
 			}
 			
 		</script>
@@ -263,6 +325,16 @@
 				float:right;
 				text-align:right;
 			}
+			
+			.textDiv {
+				float:left;
+			}
+			
+			.textDiv a {
+				text-decoration: underline;
+				color: blue;
+				margin:5px;
+			}
 						
 			.selected {
 				background-color: green;
@@ -297,7 +369,13 @@
 			<div id="options">
 			</div>
 		</div>
-		<div id="modPreset" class="section">
+		<div id="groupEdit" class="section">
+			<h1>Group Edit</h2>
+			Name:<input type="text" name="groupName" id="groupName" />
+			<h2>Lights</h2>
+			<div id="grpLights"></div>
+			<h2>Presets</h2>
+			<div id="grpPresets"></div>
 		</div>
 	</body>
 </html>

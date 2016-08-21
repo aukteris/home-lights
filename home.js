@@ -5,6 +5,14 @@ var schedule = require('node-schedule');
 var SunCalc = require('suncalc');
 var util = require('util');
 var fs = require('fs');
+var path = require('path');
+var storage = require('node-persist');
+var uuid = require('./').uuid;
+var Bridge = require('./').Bridge;
+var Accessory = require('./').Accessory;
+var Service = require('./').Service;
+var Characteristic = require('./').Characteristic;
+var accessoryLoader = require('./HAP-NodeJS/lib/AccessoryLoader');
 
 var lctrl = require('./lctrl');
 var lctrl_settings = require('./lctrl_settings');
@@ -20,12 +28,38 @@ var thresh;
 var disabled = false;
 var hpl;
 var this_hpl;
+var accObj;
 
 // define some functions
 function loggit(message,level) {
 	var now = dateFormat();
 	
 	console.log(now + " " + message);
+}
+
+function HSVtoRGB(h, s, v) {
+    var r, g, b, i, f, p, q, t;
+    if (arguments.length === 1) {
+        s = h.s, v = h.v, h = h.h;
+    }
+    i = Math.floor(h * 6);
+    f = h * 6 - i;
+    p = v * (1 - s);
+    q = v * (1 - f * s);
+    t = v * (1 - (1 - f) * s);
+    switch (i % 6) {
+        case 0: r = v, g = t, b = p; break;
+        case 1: r = q, g = v, b = p; break;
+        case 2: r = p, g = v, b = t; break;
+        case 3: r = p, g = q, b = v; break;
+        case 4: r = t, g = p, b = v; break;
+        case 5: r = v, g = p, b = q; break;
+    }
+    return {
+        r: Math.round(r * 255),
+        g: Math.round(g * 255),
+        b: Math.round(b * 255)
+    };
 }
 
 // Connect to MQTT for device communication
@@ -206,13 +240,192 @@ lctrl.init(function () {
 		
 		loggit('Light Control initialized');
 		
+		loggit("HAP-NodeJS starting...");
+
+		// Initialize our storage system
+		storage.initSync();
+		
+		// Start by creating our Bridge which will host all loaded Accessories
+		var bridge = new Bridge('Home Bridge', uuid.generate("Home Bridge"));
+		
+		// Listen for bridge identification event
+		bridge.on('identify', function(paired, callback) {
+		  console.log("Home Bridge identify");
+		  callback(); // success
+		});
+		
+		// Load up all accessories in the /accessories folder
+		accObj = [];
+		var accessories = [];
+		
+		for (var key in lctrl.lights) {
+			accObj[key] = new accessory(key);
+			accessories.push(accObj[key].light);
+		}
+		
+		accessories = processAccessories(accessories);
+
+		// Add them all to the bridge
+		accessories.forEach(function(accessory) {
+			//console.log(accessory);
+			//console.log(accessory.services[1].characteristics[2]);
+		  bridge.addBridgedAccessory(accessory);
+		});
+		console.log(Bridge);
+		// Publish the Bridge on the local network.
+		bridge.publish({
+		  username: "EC:22:3C:E3:CD:F7",
+		  port: 51826,
+		  pincode: "031-45-154",
+		  category: Accessory.Categories.BRIDGE
+		});
 		//fs.writeFileSync('./data.json', util.inspect(lctrl.groups) , 'utf-8');
+		loggit('HAP-NodeJS started');
 	});
 	
-	app.listen(3000,function () {
+	app.listen(3300,function () {
 		loggit('HTTP service started on port 3000');
 	});
 });
+
+function processAccessories(accessories) {
+	return accessories.map(function(accessory) {
+		return (accessory instanceof Accessory) ? accessory : accessoryLoader.parseAccessoryJSON(accessory);
+	});
+}
+
+function accessory(lightNum) {
+	
+		this.lightNum = lightNum;
+		
+		// Generate a consistent UUID for our light Accessory that will remain the same even when
+		// restarting our server. We use the `uuid.generate` helper function to create a deterministic
+		// UUID based on an arbitrary "namespace" and the word "light".
+		var lightUUID = uuid.generate('hap-nodejs:accessories:'+this.lightNum);
+		
+		// This is the Accessory that we'll return to HAP-NodeJS that represents our fake light.
+		this.light = new Accessory('Light', lightUUID);
+
+		this.light.username = "1A:2B:3C:4D:5E:FF";
+		this.light.pincode = "031-45-154";
+
+		// set some basic properties (these values are arbitrary and setting them is optional)
+		this.light
+		  .getService(Service.AccessoryInformation)
+		  .setCharacteristic(Characteristic.Manufacturer, "Oltica")
+		  .setCharacteristic(Characteristic.Model, "Rev-1")
+		  .setCharacteristic(Characteristic.SerialNumber, "A1S2NASF88EW");
+		
+		// listen for the "identify" event for this Accessory
+		this.light.on('identify', function(paired, callback) {
+		  identify(this.lightNum);
+		  callback(); // success
+		});
+		
+		var name = this.lightNum;
+		// Add the actual Lightbulb Service and listen for change events from iOS.
+		// We can see the complete list of Services and Characteristics in `lib/gen/HomeKitTypes.js`
+		this.light
+		  .addService(Service.Lightbulb, this.lightNum) // services exposed to the user should have "names" like "Fake Light" for us
+		  .getCharacteristic(Characteristic.On)
+		  .on('set', function(value, callback) {
+			loggit(name);
+		    setPowerOn(value,name);
+		    callback(); // Our fake Light is synchronous - this value has been successfully set
+		  });
+		
+		// We want to intercept requests for our current power state so we can query the hardware itself instead of
+		// allowing HAP-NodeJS to return the cached Characteristic.value.
+		this.light
+		  .getService(Service.Lightbulb)
+		  .getCharacteristic(Characteristic.On)
+		  .on('get', function(callback) {
+		    
+		    // this event is emitted when you ask Siri directly whether your light is on or not. you might query
+		    // the light hardware itself to find this out, then call the callback. But if you take longer than a
+		    // few seconds to respond, Siri will give up.
+		    
+		    var err = null; // in case there were any problems
+			
+			if (checkOn(name) == true) {
+				loggit("Are we on? Yes.");
+				callback(err, true);
+			} else {
+				loggit("Are we on? No.");
+				callback(err, false);
+			}
+		  });
+
+		if (lctrl.lights[this.lightNum].tech == "Hue") {
+			// also add an "optional" Characteristic for Brightness
+			this.light
+			  .getService(Service.Lightbulb)
+			  .addCharacteristic(Characteristic.Brightness)
+			  .on('get', function(callback) {
+			  	//var bri = (lctrl.lights[name].bri/255) * 100;
+			    callback(null, lctrl.lights[name].bri);
+			  })
+			  .on('set', function(value, callback) {
+			  	var bri = (value/100) * 255;
+			    lctrl.setStates([name],{'bri':bri},function() {
+		
+				});
+			    callback();
+			  });
+
+			if (lctrl.lights[this.lightNum].color == true) {
+				this.light
+				  .getService(Service.Lightbulb)
+				  .addCharacteristic(Characteristic.Hue)
+				  .on('get', function(callback) {
+				  	//var bri = (lctrl.lights[name].hue/255) * 100;
+				    callback(null, lctrl.lights[name].hue);
+				  })
+				  .on('set', function(value, callback) {
+				  	//var hue = (value/100) * 255;
+				    lctrl.setStates([name],{'hue':value},function() {
+			
+					});
+				    callback();
+				  });
+
+				this.light
+				  .getService(Service.Lightbulb)
+				  .addCharacteristic(Characteristic.Saturation)
+				  .on('get', function(callback) {
+				  	//var bri = (lctrl.lights[name].hue/255) * 100;
+				    callback(null, lctrl.lights[name].sat);
+				  })
+				  .on('set', function(value, callback) {
+				  	//var hue = (value/100) * 255;
+				    lctrl.setStates([name],{'sat':value},function() {
+			
+					});
+				    callback();
+				  });
+			}
+		}
+		
+		if (lctrl.lights[this.lightNum].tech == "Dan Light") {
+				
+		}
+		  
+}
+
+function checkOn(name) {
+	return lctrl.lights[name].on == true;
+}
+
+function setPowerOn(on,name) {
+	var cmd = on ? "on" : "off";
+	lctrl.setStates([name],{'cmd':cmd},function() {
+		
+	});
+}
+
+function identify(name) {
+	console.log("Identify the light!");
+}
 
 function mqtt_listener() {
 	client.on('message', function (topic, message) {
@@ -236,12 +449,15 @@ function mqtt_listener() {
 					if (disabled === false) {
 						if (data['state'] == 'OPEN') {
 							lctrl.setStates('Living Room',{'cmd':'on'},function(){});
-							//client.publish('lrgroup','ON');
+							client.publish('lightupdate','{"light":2,"state":"cmd","val":"on"}');
+							client.publish('lightupdate','{"light":3,"state":"cmd","val":"on"}');
 						} 
 						
 						var t = thresh[this_hpl]*1000;
 						lctrl.delaySetGroupStates('Living Room',{'cmd':'off'},t, function(){
-							//client.publish('lrgroup','OFF');	
+							//client.publish('lrgroup','OFF');
+							client.publish('lightupdate','{"light":2,"state":"cmd","val":"off"}');
+							client.publish('lightupdate','{"light":3,"state":"cmd","val":"off"}');
 						});
 					}
 				}
@@ -288,6 +504,15 @@ app.post('/setGroupPreset',function(req,res){
 app.post('/setLightState',function(req,res) {
 	lctrl.lights[req.body.light].setState(req.body.state,req.body.val);
 	res.end("{'status':'successful'}");
+	
+	var data = JSON.stringify({
+		"light":req.body.light,
+		"state":req.body.state,
+		"val":req.body.val
+	});
+	
+	client.publish('lightupdate',data);
+	loggit(data);
 });
 
 app.post('/getState',function(req,res) {
