@@ -196,6 +196,37 @@ function fadeWhite(startColor,startBri,endColor,endBright,duration,cb) {
 	}	
 }
 
+function HSVtoRGB(hi, si, vi) {
+	var h = hi/360;
+	
+	var s = si/100;
+	
+	var v = vi/100;
+	
+    var r, g, b, i, f, p, q, t;
+    if (arguments.length === 1) {
+        s = h.s, v = h.v, h = h.h;
+    }
+    i = Math.floor(h * 6);
+    f = h * 6 - i;
+    p = v * (1 - s);
+    q = v * (1 - f * s);
+    t = v * (1 - (1 - f) * s);
+    switch (i % 6) {
+        case 0: r = v, g = t, b = p; break;
+        case 1: r = q, g = v, b = p; break;
+        case 2: r = p, g = v, b = t; break;
+        case 3: r = p, g = q, b = v; break;
+        case 4: r = t, g = p, b = v; break;
+        case 5: r = v, g = p, b = q; break;
+    }
+    return {
+        r: Math.round(r * 255),
+        g: Math.round(g * 255),
+        b: Math.round(b * 255)
+    };
+}
+
 // light object
 function Light(tech,name) {
 	this.tech = tech;
@@ -230,7 +261,11 @@ Light.prototype.setState = function(state,val) {
 		case "bri":
 			onState = lightState.create().bri(val).on();
 			this.bri = (val/255)*100;
+			
+			var inRGB = HSVtoRGB(this.hue,this.sat,this.bri);
+			dansState = [inRGB['r'],inRGB['g'],inRGB['b']];
 			this.on = true;
+			this.activePreset = null;
 			break;
 			
 		case "rgb":
@@ -252,15 +287,19 @@ Light.prototype.setState = function(state,val) {
 		case "hue":
 			this.hue = val;
 			onState = this.color === true ? lightState.create().hsb(this.hue,this.sat,this.bri).on() : lightState.create().bri(val[1]).on();
-
+			var inRGB = HSVtoRGB(this.hue,this.sat,this.bri);
+			dansState = [inRGB['r'],inRGB['g'],inRGB['b']];
 			this.on = true;
+			this.activePreset = null;
 			break;
 
 		case "sat":
 			this.sat = val;
 			onState = this.color === true ? lightState.create().hsb(this.hue,this.sat,this.bri).on() : lightState.create().bri(val[1]).on();
+			var inRGB = HSVtoRGB(this.hue,this.sat,this.bri);
+			dansState = [inRGB['r'],inRGB['g'],inRGB['b']];
 			this.on = true;
-
+			this.activePreset = null;
 			break;
 			
 		case "white":
@@ -268,6 +307,7 @@ Light.prototype.setState = function(state,val) {
 			this.bri = val[1];
 			
 			onState = this.color === true ? lightState.create().white(val[0],val[1]).on() : lightState.create().bri(temp).on();
+			
 			this.on = true;
 			
 			wemoOnState = 1;
@@ -286,6 +326,8 @@ Light.prototype.setState = function(state,val) {
 				case "on":
 					if (this.activePreset === null) {
 						onState = lightState.create().on();
+						var inRGB = HSVtoRGB(this.hue,this.sat,this.bri);
+						dansState = [inRGB['r'],inRGB['g'],inRGB['b']];
 						this.on = true;
 					} else {
 						loadPreset = true;
