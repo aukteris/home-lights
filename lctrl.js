@@ -4,11 +4,11 @@ var hue = require("node-hue-api"),
 var Wemo = require('wemo-client');
 var dateFormat = require('dateformat');
 
-var hostname = "10.0.1.4",
+var hostname = "10.0.1.3",
 	username = "pucuzePjlQkG1pblTsFrujXxVxA07C9LPXxdc-Uy",
 	api;
 
-var mqtt    = require('mqtt');
+var mqtt = require('mqtt');
 var mclient  = mqtt.connect('mqtt://10.0.1.72');
 
 // Connect to MQTT for device communication
@@ -66,6 +66,7 @@ function findDevices(cb) {
 				var client = wemo.client(deviceInfo);
 				
 				switch (deviceInfo['deviceType']) {
+					case "urn:Belkin:device:controllee:1":
 					case "urn:Belkin:device:insight:1":
 						var light = new Light('Wemo Insight Switch',deviceInfo['friendlyName']);
 						light.wemoDevice = client;
@@ -76,18 +77,18 @@ function findDevices(cb) {
 						
 					case "urn:Belkin:device:bridge:1":
 						client.getEndDevices(function(err, endDeviceInfo) {
-							loggit('Wemo Device Found: ' + endDeviceInfo[0]['friendlyName']);
-					
-							if (endDeviceInfo[0]['friendlyName'] == "front porch") {
-								front_porch = endDeviceInfo[0]['deviceId'];
+							
+							for (var key in endDeviceInfo) {
+								loggit('Wemo Device Found: ' + endDeviceInfo[key]['friendlyName']);
+								
+								var light = new Light('Wemo Light',endDeviceInfo[key]['friendlyName']);
+								light.wemoBridge = endDeviceInfo[key]['deviceId'];
+								light.wemoDevice = client;
+								var r = [endDeviceInfo[key]['friendlyName'],light];
+								
+								cb(r);
 							}
 							
-							var light = new Light('Wemo Light',endDeviceInfo[0]['friendlyName']);
-							light.wemoBridge = endDeviceInfo[0]['deviceId'];
-							light.wemoDevice = client;
-							var r = [endDeviceInfo[0]['friendlyName'],light];
-							
-							cb(r);
 						});
 						
 						break;
@@ -154,16 +155,14 @@ function hueFlash() {
 }
 
 function fadeWhiteTime(oWhite,oBri,cInt,bInt,frames,cb) {
-	var self = this;
 	this.startWhite += oWhite > this.endWhite ? -cInt : cInt;
 	this.startBright += oBri > this.endBright ? -bInt : bInt;
 	this.activePreset = {'white':[this.startWhite,this.startBright]};
 
-	this.getState(function(retrn) {
-		if (retrn.on == true && retrn.reachable == true) {
-			self.setState('white',[self.startWhite,self.startBright]);
-		}
-	});
+	
+	if (this.on == true && retrn.reachable == true) {
+		this.setState('white',[this.startWhite,this.startBright]);
+	}
 	this.tick++;
 	if (frames==this.tick) {
 		clearInterval(this.timeout);
@@ -227,6 +226,54 @@ function HSVtoRGB(hi, si, vi) {
     };
 }
 
+function RGBtoHSV(r, g, b) {
+    if (arguments.length === 1) {
+        g = r.g, b = r.b, r = r.r;
+    }
+    var max = Math.max(r, g, b), min = Math.min(r, g, b),
+        d = max - min,
+        h,
+        s = (max === 0 ? 0 : d / max),
+        v = max / 255;
+
+    switch (max) {
+        case min: h = 0; break;
+        case r: h = (g - b) + d * (g < b ? 6: 0); h /= 6 * d; break;
+        case g: h = (b - r) + d * 2; h /= 6 * d; break;
+        case b: h = (r - g) + d * 4; h /= 6 * d; break;
+    }
+
+    return {
+        h: h,
+        s: s,
+        v: v
+    };
+}
+
+function rgbToHsl(r, g, b) {
+  r /= 255, g /= 255, b /= 255;
+
+  var max = Math.max(r, g, b), min = Math.min(r, g, b);
+  var h, s, l = (max + min) / 2;
+
+  if (max == min) {
+    h = s = 0; // achromatic
+  } else {
+    var d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+
+    h /= 6;
+  }
+
+  return [ h, s, l ];
+}
+
 // light object
 function Light(tech,name) {
 	this.tech = tech;
@@ -236,7 +283,7 @@ function Light(tech,name) {
 	this.wemoDevice;
 	this.activePreset = null;
 	this.presetName = null;
-	this.on;
+	this.on = false;
 
 	this.hue = 360;
 	this.sat = 100;
@@ -396,22 +443,74 @@ Light.prototype.getState = function(cb) {
 	var self = this;
 	switch (this.tech) {
 		case "Hue":
-			api.lightStatusWithRGB(this.name)
-				.then(function(status){
-					var result = {
-						on:status.state['on'],
-						reachable:status.state['reachable'],
-						hue:status.state['hue'],
-						sat:status.state['sat'],
-						bri:status.state['bri'],
-						rgb:status.state['rgb'],
-						preset:self.activePreset,
-						color:self.color
-					}
-					console.log(status);
-					cb(result);
-					
-				}).done();
+			if (this.color != true) {
+				api.lightStatus(this.name)
+					.then(function(status){
+						var result = {
+							on:status.state['on'],
+							reachable:status.state['reachable'],
+							bri:status.state['bri'],
+							preset:self.activePreset,
+							color:self.color
+						}
+						
+						self.on = result.on;
+						self.bri = (result.bri/255)*100;
+						cb();
+					}).done();
+			} else {
+				api.lightStatusWithRGB(this.name)
+					.then(function(status){
+						var result = {
+							on:status.state['on'],
+							reachable:status.state['reachable'],
+							hue:status.state['hue'],
+							sat:status.state['sat'],
+							bri:status.state['bri'],
+							rgb:status.state['rgb'],
+							preset:self.activePreset,
+							color:self.color
+						}
+						
+						var hsb = rgbToHsl(result.rgb[0],result.rgb[1],result.rgb[2]);
+						console.log(hsb);
+						self.on = result.on;
+						self.bri = (result.bri/255)*100;
+						self.hue = hsb[0]*360;
+						self.sat = (result.sat/255)*100;
+						cb();
+					}).done();
+			}
+				
+			break;
+		/*
+		case "Wemo Insight Switch":
+			this.wemoDevice.getBinaryState(function(err, on) {
+				var state = on == 1;
+				
+				self.on = state;
+				cb();
+			});
+			
+			break;
+		*/
+		case "Wemo Light":
+			this.wemoDevice.getDeviceStatus(this.wemoBridge,function(err, deviceStatus) {
+				var state = deviceStatus['10006'] == 1;
+				
+				self.on = state;
+				cb();
+			});
+				
+			break;
+			
+		default:
+			var result = {
+				on:this.on
+			}
+			
+			this.on = result.on;
+			cb();
 			break;
 	}
 }

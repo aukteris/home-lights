@@ -29,6 +29,7 @@ var disabled = false;
 var hpl;
 var this_hpl;
 var accObj;
+var isMotion = false;
 
 // define some functions
 function loggit(message,level) {
@@ -129,17 +130,15 @@ lctrl.init(function () {
 	lctrl.groups['Master Bedroom'].createPreset('Relax',set);
 	
 	// Living room setup
-	lctrl.createGroup('Living Room',[2,3,'lr_rgb']);
+	lctrl.createGroup('Living Room',[2,3,'lr white']);
 	
 	var defaultDaySet = [
 		{name:'2',states:{'white':[285,100]},type:'static'},
-		{name:'3',states:{'white':[285,100]},type:'static'},
-		{name:'lr_rgb',states:{'cmd':'off'},type:'static'}
+		{name:'3',states:{'white':[285,100]},type:'static'}
 	];
 	var defaultNightSet = [
 		{name:'2',states:{'white':[375,75]},type:'static'},
-		{name:'3',states:{'white':[375,75]},type:'static'},
-		{name:'lr_rgb',states:{'cmd':'off'},type:'static'}
+		{name:'3',states:{'white':[375,75]},type:'static'}
 	];
 	
 	// Default preset
@@ -149,8 +148,7 @@ lctrl.init(function () {
 	// Relax preset
 	var set = [
 		{name:'2',states:{'hueBriSat':[49697,153,254]},type:'static'},
-		{name:'3',states:{'hueBriSat':[14948,117,143]},type:'static'},
-		{name:'lr_rgb',states:{'rgb':[40,40,210]},type:'static'}
+		{name:'3',states:{'hueBriSat':[14948,117,143]},type:'static'}
 	];
 	lctrl.groups['Living Room'].createPreset('Relax',set); 
 	
@@ -238,6 +236,9 @@ lctrl.init(function () {
 			accessories.push(accObj[key].light);
 		}
 		
+		accObj['lrMotion'] = new motionAccessory('lrMotion');
+		accessories.push(accObj['lrMotion'].device);
+		
 		accessories = processAccessories(accessories);
 
 		// Add them all to the bridge
@@ -246,10 +247,10 @@ lctrl.init(function () {
 			//console.log(accessory.services[1].characteristics[2]);
 		  bridge.addBridgedAccessory(accessory);
 		});
-		console.log(Bridge);
+		//console.log(Bridge);
 		// Publish the Bridge on the local network.
 		bridge.publish({
-		  username: "EC:22:3C:E3:CD:F7",
+		  username: "EC:22:3C:EE:CD:F7",
 		  port: 51826,
 		  pincode: "031-45-154",
 		  category: Accessory.Categories.BRIDGE
@@ -267,6 +268,46 @@ function processAccessories(accessories) {
 	return accessories.map(function(accessory) {
 		return (accessory instanceof Accessory) ? accessory : accessoryLoader.parseAccessoryJSON(accessory);
 	});
+}
+
+function motionAccessory(name) {
+	this.name = name;
+	
+	var sensorUUID = uuid.generate('hap-nodejs:accessories:lrMotion');
+	
+	this.device = new Accessory('Motion Sensor', sensorUUID);
+	
+	this.device
+		.addService(Service.MotionSensor, 'lrMotion')
+		.getCharacteristic(Characteristic.MotionDetected)
+		.on('get', function(callback) {
+			callback(null, isMotion);
+		});
+	
+	var self = this;
+	client.on('message', function (topic, message) {
+		switch (topic) {
+			case "presence":				
+				var data = JSON.parse(message.toString());
+				
+				// Living room motion detected
+				if (data['entity'] == 'lr_motion') {
+					loggit('Motion detected');
+					
+					if (data['state'] == 'OPEN') {
+						isMotion = true;
+					} else {
+						isMotion = false;
+					}
+					
+					self.device
+						.getService(Service.MotionSensor)
+						.setCharacteristic(Characteristic.MotionDetected, isMotion);
+				}
+				break;
+		}
+	});
+	
 }
 
 function accessory(lightNum) {
@@ -304,8 +345,11 @@ function accessory(lightNum) {
 		  .addService(Service.Lightbulb, this.lightNum) // services exposed to the user should have "names" like "Fake Light" for us
 		  .getCharacteristic(Characteristic.On)
 		  .on('set', function(value, callback) {
-			loggit(name);
+			//loggit(name);
 		    setPowerOn(value,name);
+		    if (name == 2 || name == 3 || name == 'lr white') {
+					clearTimeout(lctrl.groups['Living Room'].delay);
+				}
 		    callback(); // Our fake Light is synchronous - this value has been successfully set
 		  });
 		
@@ -322,13 +366,12 @@ function accessory(lightNum) {
 		    
 		    var err = null; // in case there were any problems
 			
-			if (checkOn(name) == true) {
-				loggit("Are we on? Yes.");
-				callback(err, true);
-			} else {
-				loggit("Are we on? No.");
-				callback(err, false);
-			}
+			checkOn(name,function(ret) {
+				var statLabel = name + " on status: " + ret;
+				loggit(statLabel);
+				callback(err, ret);
+			});
+			
 		  });
 
 		if (lctrl.lights[this.lightNum].tech == "Hue" || lctrl.lights[this.lightNum].tech == "Dan Light") {
@@ -341,9 +384,12 @@ function accessory(lightNum) {
 			    callback(null, lctrl.lights[name].bri);
 			  })
 			  .on('set', function(value, callback) {
+				if (name == 2 || name == 3 || name == 'lr white') {
+					clearTimeout(lctrl.groups['Living Room'].delay);
+				}
 			  	var bri = (value/100) * 255;
 			    lctrl.setStates([name],{'bri':bri},function() {
-		
+					
 				});
 			    callback();
 			  });
@@ -359,7 +405,9 @@ function accessory(lightNum) {
 				  .on('set', function(value, callback) {
 				  	//var hue = (value/100) * 255;
 				    lctrl.setStates([name],{'hue':value},function() {
-			
+						if (name == 2 || name == 3 || name == 'lr white') {
+					clearTimeout(lctrl.groups['Living Room'].delay);
+				}
 					});
 				    callback();
 				  });
@@ -374,7 +422,9 @@ function accessory(lightNum) {
 				  .on('set', function(value, callback) {
 				  	//var hue = (value/100) * 255;
 				    lctrl.setStates([name],{'sat':value},function() {
-			
+						if (name == 2 || name == 3 || name == 'lr white') {
+					clearTimeout(lctrl.groups['Living Room'].delay);
+				}
 					});
 				    callback();
 				  });
@@ -387,8 +437,12 @@ function accessory(lightNum) {
 		  
 }
 
-function checkOn(name) {
-	return lctrl.lights[name].on == true;
+function checkOn(name,cb) {	
+	lctrl.lights[name].getState(function() {
+		var ret = lctrl.lights[name].on;
+		cb(ret);
+	});
+	
 }
 
 function setPowerOn(on,name) {
@@ -405,12 +459,19 @@ function identify(name) {
 function mqtt_listener() {
 	client.on('message', function (topic, message) {
 		switch (topic) {
-			case "presence":				
+			case "presence":
+				
 				var data = JSON.parse(message.toString());
 				
 				// Living room motion detected
 				if (data['entity'] == 'lr_motion') {
 					loggit('Motion detected');
+					
+					if (data['state'] == 'OPEN') {
+						isMotion = true;
+					} else {
+						isMotion = false;
+					}
 					
 					var now = new Date();
 					current_hour = now.getHours();
